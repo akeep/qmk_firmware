@@ -114,6 +114,269 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     return state;
 }
 
+#ifdef OLED_ENABLE
+oled_rotation_t oled_init_user(oled_rotation_t rotation) {
+    if (is_keyboard_master()) {
+        return OLED_ROTATION_270;
+    } else {
+        return OLED_ROTATION_180;
+    }
+}
+
+void render_crkbd_logo(void) {
+    static const char PROGMEM crkbd_logo[] = {
+        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x90, 0x91, 0x92, 0x93, 0x94,
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1, 0xb2, 0xb3, 0xb4,
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4,
+        0};
+    oled_write_P(crkbd_logo, false);
+}
+
+#    ifdef RGB_MATRIX_ENABLE
+const char *rgb_matrix_anim_oled_text(uint8_t mode) {
+    switch (mode) {
+        case RGB_MATRIX_TYPING_HEATMAP:
+            return PSTR("Heat ");
+        case RGB_MATRIX_SOLID_REACTIVE_MULTINEXUS:
+            return PSTR("Nexus");
+        case RGB_MATRIX_SOLID_COLOR:
+            return PSTR("Solid");
+        case RGB_MATRIX_CYCLE_ALL:
+            return PSTR("Cycle");
+        case RGB_MATRIX_RAINBOW_PINWHEELS:
+            return PSTR("Wheel");
+        case RGB_MATRIX_CYCLE_LEFT_RIGHT:
+            return PSTR("Wave ");
+        default:
+            return PSTR("");
+    }
+}
+#    endif
+
+void render_status(void) {
+    // oled_write_P(PSTR("Layout: "), false);
+    switch (get_highest_layer(default_layer_state)) {
+        case _COLEMAKDHM:
+            oled_write_P(PSTR("TYPE "), false);
+            break;
+        case _GAMING:
+            oled_write_P(PSTR("GAME "), false);
+            break;
+    }
+
+    oled_write_P(PSTR("\n"), false);
+
+    switch (get_highest_layer(layer_state)) {
+        case 0:
+            oled_write_P(PSTR("     "), false);
+            break;
+        case _SYM:
+            oled_write_P(PSTR("Sym  "), false);
+            break;
+        case _NAV:
+            oled_write_P(PSTR("Nav  "), false);
+            break;
+        case _GAMING_EXT:
+            oled_write_P(PSTR("Ext  "), false);
+            break;
+        case _NUMPAD:
+            oled_write_P(PSTR("Num  "), false);
+            break;
+        case _UTIL:
+            oled_write_P(PSTR("Util "), false);
+            break;
+        default:
+            oled_write_P(PSTR("Unkn "), false);
+            break;
+    }
+    oled_write_P(PSTR("\n"), false);
+
+    uint8_t modifiers = get_mods();
+
+    oled_write_P((modifiers & MOD_MASK_SHIFT) ? PSTR("SHIFT") : PSTR("\n"), false);
+    oled_write_P((modifiers & MOD_MASK_CTRL) ? PSTR("CTRL ") : PSTR("\n"), false);
+    oled_write_P((modifiers & MOD_MASK_ALT) ? PSTR("ALT  ") : PSTR("\n"), false);
+    oled_write_P((modifiers & MOD_MASK_GUI) ? PSTR("SUPER") : PSTR("\n"), false);
+
+    oled_write_P(PSTR("\n"), false);
+
+    led_t led_state = host_keyboard_led_state();
+    oled_write_P(PSTR("Mode:"), false);
+    oled_write_P(led_state.num_lock ? PSTR(" NUM ") : PSTR("\n"), false);
+    oled_write_P(led_state.caps_lock ? PSTR(" CAPS") : PSTR("\n"), false);
+
+#    ifdef RGB_MATRIX_ENABLE
+    oled_write_P(PSTR("\n"), false);
+    oled_write_P(PSTR("\n"), false);
+
+    if (rgb_matrix_config.enable) {
+        if (user_config.rgb_matrix_idle_anim) {
+            oled_write_P(rgb_matrix_anim_oled_text(user_config.rgb_matrix_active_mode), false);
+            oled_write_P(rgb_matrix_anim_oled_text(user_config.rgb_matrix_idle_mode), false);
+        } else {
+            oled_write_P(PSTR("\n"), false);
+            oled_write_P(rgb_matrix_anim_oled_text(rgb_matrix_get_mode()), false);
+        }
+      } else {
+        oled_write_P(PSTR("\n"), false);
+        oled_write_P(PSTR("\n"), false);
+      }
+#    endif
+}
+
+bool oled_task_user(void) {
+    if (timer_elapsed32(oled_timer) > OLED_TIMEOUT) {
+        oled_off();
+        return;
+    } else {
+        oled_on();
+    }
+
+    if (is_keyboard_master()) {
+        render_status();  // Renders the current keyboard state (layer, lock, caps, scroll, etc)
+    } else {
+        render_crkbd_logo();
+        #ifdef RGB_MATRIX_ENABLE
+            if (user_config.rgb_matrix_idle_anim && rgb_matrix_get_mode() == user_config.rgb_matrix_idle_mode) {
+                oled_scroll_left();  // Turns on scrolling
+            } else {
+              oled_scroll_off();
+            }
+        #endif
+    }
+    return false;
+}
+#endif
+
+#ifdef RGB_MATRIX_ENABLE
+
+extern led_config_t g_led_config;
+void rgb_matrix_layer_helper(uint8_t hue, uint8_t sat, uint8_t val, uint8_t led_type) {
+    HSV hsv = {hue, sat, val};
+    if (hsv.v > rgb_matrix_config.hsv.v) {
+        hsv.v = rgb_matrix_config.hsv.v;
+    }
+
+    RGB rgb = hsv_to_rgb(hsv);
+    for (uint8_t i = 0; i < RGB_MATRIX_LED_COUNT; i++) {
+        if (HAS_FLAGS(g_led_config.flags[i], led_type)) {
+            rgb_matrix_set_color(i, rgb.r, rgb.g, rgb.b);
+        }
+    }
+}
+
+void check_default_layer(uint8_t type) {
+    switch (get_highest_layer(default_layer_state)) {
+        case _COLEMAKDHM:
+            rgb_matrix_layer_helper(THEME_HSV, type);
+            break;
+        case _GAMING:
+            rgb_matrix_layer_helper(HSV_RED, type);
+            break;
+    }
+}
+
+bool rgb_matrix_indicators_user(void) {
+  if (
+    user_config.rgb_layer_change && rgb_matrix_config.enable &&
+      (!user_config.rgb_matrix_idle_anim || rgb_matrix_get_mode() != user_config.rgb_matrix_idle_mode)
+  )
+    {
+        switch (get_highest_layer(layer_state)) {
+            case _GAMING_EXT:
+                rgb_matrix_layer_helper(HSV_PURPLE, LED_FLAG_UNDERGLOW);
+                break;
+            case _SYM:
+                rgb_matrix_layer_helper(HSV_GOLDENROD, LED_FLAG_UNDERGLOW);
+                break;
+            case _NAV:
+                rgb_matrix_layer_helper(HSV_SPRINGGREEN, LED_FLAG_UNDERGLOW);
+                break;
+            case _UTIL:
+                rgb_matrix_layer_helper(HSV_PINK, LED_FLAG_UNDERGLOW);
+                break;
+            case _NUMPAD:
+                rgb_matrix_layer_helper(HSV_CORAL, LED_FLAG_UNDERGLOW);
+                break;
+            default: {
+                check_default_layer(LED_FLAG_UNDERGLOW);
+                break;
+            }
+        }
+    }
+    return false;
+}
+
+void rgb_matrix_update_current_mode(uint8_t mode, uint8_t speed) {
+    rgb_matrix_config.speed = speed;
+    rgb_matrix_mode_noeeprom(mode);
+    eeconfig_update_user(user_config.raw);
+}
+
+void rgb_matrix_update_dynamic_mode(uint8_t mode, uint8_t speed, bool active) {
+    if (active) {
+        user_config.rgb_matrix_active_speed = speed;
+        user_config.rgb_matrix_active_mode  = mode;
+    } else {
+        user_config.rgb_matrix_idle_speed = speed;
+        user_config.rgb_matrix_idle_mode  = mode;
+    }
+}
+
+void rgb_matrix_update_mode(uint8_t mode, uint8_t speed, bool active) {
+    if (user_config.rgb_matrix_idle_anim) {
+        rgb_matrix_update_dynamic_mode(mode, speed, active);
+    }
+    if (active || !user_config.rgb_matrix_idle_anim) {
+        rgb_matrix_update_current_mode(mode, speed);
+    }
+}
+
+void rgb_matrix_set_defaults(void) {
+    rgb_matrix_config.enable = 1;
+    rgb_matrix_sethsv_noeeprom(THEME_HSV);
+
+    user_config.rgb_layer_change        = false;
+    user_config.rgb_matrix_idle_anim    = true;
+    user_config.rgb_matrix_idle_timeout = 60000;
+
+    rgb_matrix_update_dynamic_mode(RGB_MATRIX_CYCLE_ALL, RGB_MATRIX_ANIMATION_SPEED_SLOWER, false);
+    rgb_matrix_update_dynamic_mode(RGB_MATRIX_SOLID_REACTIVE_MULTINEXUS, RGB_MATRIX_ANIMATION_SPEED_DEFAULT, true);
+
+    eeprom_update_block(&rgb_matrix_config, EECONFIG_RGB_MATRIX, sizeof(rgb_matrix_config));
+}
+
+void matrix_scan_rgb(void) {
+    if (user_config.rgb_matrix_idle_anim && rgb_matrix_get_mode() == user_config.rgb_matrix_active_mode && timer_elapsed32(hypno_timer) > user_config.rgb_matrix_idle_timeout) {
+        if (user_config.rgb_layer_change) {
+            rgb_matrix_layer_helper(0, 0, 0, LED_FLAG_UNDERGLOW);
+        }
+        rgb_matrix_update_current_mode(user_config.rgb_matrix_idle_mode, user_config.rgb_matrix_idle_speed);
+    }
+}
+
+void matrix_scan_user(void) {
+    static bool has_ran_yet;
+    if (!has_ran_yet) {
+        has_ran_yet = true;
+        startup_user();
+    }
+    matrix_scan_rgb();
+}
+
+void eeconfig_init_user(void) {
+    user_config.raw = 0;
+    rgb_matrix_mode_noeeprom(user_config.rgb_matrix_active_mode);
+    keyboard_init();
+}
+
+void keyboard_post_init_user(void) {
+    user_config.raw = eeconfig_read_user();
+    rgb_matrix_set_defaults();
+    rgb_matrix_enable_noeeprom();
+}
+#endif
+
 void suspend_power_down_keymap(void) {
 #ifdef OLED_ENABLE
     oled_off();
