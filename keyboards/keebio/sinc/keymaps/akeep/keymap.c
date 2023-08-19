@@ -1,30 +1,16 @@
 #include QMK_KEYBOARD_H
 
-enum custom_keycodes {
-  ITERM = SAFE_RANGE,
-  NEOVIDE,
-};
-
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-  switch (keycode) {
-    case ITERM:
-      if (record->event.pressed) {
-        SEND_STRING(SS_LGUI(" ") SS_DELAY(500) "iterm" SS_DELAY(500) SS_TAP(X_ENT));
-      } else {
-        // when keycode is released, do nothing.
-      }
-      break;
-    case NEOVIDE:
-      if (record->event.pressed) {
-        SEND_STRING(SS_LGUI(" ") SS_DELAY(500) "term" SS_DELAY(500) SS_TAP(X_ENT) SS_DELAY(500) "neovide" SS_TAP(X_ENT) SS_DELAY(500) "exit" SS_TAP(X_ENT));
-      } else {
-        // when keycode is released, do nothing.
-      }
-      break;
-  }
-
-  return true;
+/*
+ * Uncomment to turn on console debugging.
+ *
+void keyboard_post_init_user(void) {
+  // Customise these values to desired behaviour
+  debug_enable=true;
+  debug_matrix=true;
+  debug_keyboard=true;
+  //debug_mouse=true;
 }
+ */
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [0] = LAYOUT_80_with_macro(
