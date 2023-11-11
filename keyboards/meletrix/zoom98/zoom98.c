@@ -1,4 +1,4 @@
-/* Copyright 2023 meletrix
+/* Copyright 2023 Gondolindrim <gondolindrim@acheronproject.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,10 @@
 
 #include "quantum.h"
 
-bool rgb_matrix_indicators_advanced_kb(uint8_t led_min, uint8_t led_max) {
-    if (!rgb_matrix_indicators_advanced_user(led_min, led_max)) {
-        return false;
+bool led_update_kb(led_t led_state) {
+    bool res = led_update_user(led_state);
+    if(res) {
+        led_state.caps_lock ? rgblight_setrgb_at(0xAA,0xAA,0xAA,0) : rgblight_setrgb_at(0x00,0x00,0x00,0) ;
     }
-    if (host_keyboard_led_state().caps_lock) {
-        for (uint8_t i = led_min; i < led_max; i++) {
-            if (g_led_config.flags[i] & LED_FLAG_MODIFIER) {
-                rgb_matrix_set_color(i, RGB_WHITE);
-            }
-        }
-    }
-    return false;
+    return res;
 }

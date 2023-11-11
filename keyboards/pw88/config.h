@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Matthijs Muller
+Copyright 2023 @dlford
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,4 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#define WS2812_PIO_USE_PIO1 // Force the usage of PIO1 peripheral, by default the WS2812 implementation uses the PIO0 peripheral
+#include_next <mcuconf.h>
+
+#undef RP_PWM_USE_PWM4
+#define RP_PWM_USE_PWM4 TRUE
+
+#undef RP_I2C_USE_I2C1
+#define RP_I2C_USE_I2C1 TRUE
